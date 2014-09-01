@@ -7,28 +7,28 @@ module HexGraph
     def initialize(board_size)
       @n = board_size
       @grid=Hash.new(EMPTY)
-      self.set_edges
+      set_edges
     end
 
     def set_edges
       (1..@n).each do |z|
-        self.set_cell([0,z], WHITE)
-        self.set_cell([@n+1, z], WHITE)
-        self.set_cell([z, 0], BLACK)
-        self.set_cell([z, @n+1], BLACK)
+        set_cell([0,z], WHITE)
+        set_cell([@n+1, z], WHITE)
+        set_cell([z, 0], BLACK)
+        set_cell([z, @n+1], BLACK)
       end
     end
 
     def set_cell(coord, value)
-      self.validate_coords(coord)
+      validate_coords(coord)
       @grid[coord]=value
     end
 
     def stones_of_color(color)
       stones = []
-      (1..@n).each do |y|
-        (1..@n).each do |x|
-          stones << [x,y] if self.get_cell([x,y]) == color
+      (0..@n+1).each do |y|
+        (0..@n+1).each do |x|
+          stones << [x,y] if get_cell([x,y]) == color
         end
       end
       stones
@@ -39,13 +39,13 @@ module HexGraph
       state = state.gsub(" ", "")
       raise "#{state} Wrong length state string for board size #{@n}" unless state.size == @n*@n
       @grid = Hash.new(EMPTY)
-      self.set_edges
+      set_edges
       i=0
       state.each_char do |ch|
         x = (i % @n) + 1
         y = (i / @n) + 1
-        self.set_cell([x,y], WHITE) if ch=='W'  
-        self.set_cell([x,y], BLACK) if ch=='B' 
+        set_cell([x,y], WHITE) if ch=='W'  
+        set_cell([x,y], BLACK) if ch=='B' 
         i+=1 
       end
     end
@@ -55,12 +55,12 @@ module HexGraph
     end
 
     def print_board
-      (1..@n).each do |y|
+      (0..@n+1).each do |y|
         y.times{print " "}
-        (1..@n).each do |x|
-          print "W" if self.get_cell([x,y])==WHITE
-          print "B" if self.get_cell([x,y])==BLACK
-          print "_" if self.get_cell([x,y])==EMPTY
+        (0..@n+1).each do |x|
+          print "W" if get_cell([x,y])==WHITE
+          print "B" if get_cell([x,y])==BLACK
+          print "_" if get_cell([x,y])==EMPTY
           print " "
         end
         puts " "
@@ -77,7 +77,7 @@ module HexGraph
     end
 
     def adjacent_to(coord)
-      self.validate_coords(coord)
+      validate_coords(coord)
       x, y = coord
       results = []
       results << [x-1, y] if x > 0
@@ -92,9 +92,9 @@ module HexGraph
     def open_adjacent_to_group(group)
       adj = []
       group.each do |cell|
-        adj += self.adjacent_to(cell)
+        adj += adjacent_to(cell)
       end
-      adj.uniq.select{|cell| self.get_cell(cell)==EMPTY}
+      adj.uniq.select{|cell| get_cell(cell)==EMPTY}
     end
 
     def black_wins_naive?
@@ -108,51 +108,43 @@ module HexGraph
     end
    
     def black_wins?
-      self.black_wins_groups?
+      black_wins_groups?
     end
     
     def black_wins_groups?
       return true if black_wins_naive?
-      groups = []
       
       # get group connected to north
-      north_set = [[1,0]]
-      north_connected = connected_stones(north_set)
-      groups << north_connected
+      a_north_stone = [1,0]
+      connected_to_north = connected_groups(a_north_stone)
+      a_south_stone = [1,@n+1]
+      connected_to_north.include?(a_south_stone) 
+    end
 
-      # get group connected to south
-      south_set = [[1,@n+1]]
-      south_connected = connected_stones(south_set)
-      groups << south_connected
-
-      # get remaining groups
-      # We can assume groups[0] is north and groups[1] is south
-      self.stones_of_color(BLACK).each do |cell|
+    def connected_groups(starting_stone)
+      groups = [connected_stones([starting_stone])]
+      color = get_cell(starting_stone)
+      stones_of_color(color).each do |cell|
         next if groups.flatten(1).include?(cell)
-        groups << self.connected_stones([cell])
+        groups << connected_stones([cell])
       end
-
-      north = groups[0]
-      south = groups[1]
+      base_group = groups[0]
       unmatched = groups[1..groups.size]
       required_open_groups = []
       new_unmatched = []
       loop do
         unmatched.each do |g|
-          north_adj = self.open_adjacent_to_group(north)
-          g_adj = self.open_adjacent_to_group(g)
-          intersection_of_adjacent = north_adj & g_adj
+          base_adj = open_adjacent_to_group(base_group)
+          g_adj = open_adjacent_to_group(g)
+          intersection_of_adjacent = base_adj & g_adj
           if (intersection_of_adjacent).size > 1
             overlap_fail = false
             required_open_groups.each_with_index do |open_group, ind|
               overlap = open_group & intersection_of_adjacent
-              break if overlap.empty?
+              next if overlap.empty?
               if open_group.size == 2 and intersection_of_adjacent.size == 2
                 overlap_fail = true
                 break
-              ## This logic needs to be broader, how to handle
-              # case where open group is 3 and i_o_a is 3 but they have
-              # an overlap of 2, for example
               elsif intersection_of_adjacent == 2
                 o_minus_i = open_group - intersection_of_adjacent
                 if o_minus_i.size > 1
@@ -175,8 +167,10 @@ module HexGraph
 
             end
             unless overlap_fail
-              north += g
+              base_group += g
               required_open_groups += intersection_of_adjacent
+            else
+              new_unmatched << g
             end
           else
             new_unmatched << g
@@ -185,13 +179,13 @@ module HexGraph
         break if unmatched == new_unmatched
         unmatched = new_unmatched
       end
-      return (north & south).size > 0
+      return base_group
       
     end
     
     def connected_stones(list_of_cells)
       return [] if list_of_cells.empty?
-      color = self.get_cell(list_of_cells.first)
+      color = get_cell(list_of_cells.first)
       raise "list_of_cells not black or white" if color == EMPTY
       list_of_cells.each do |cell|
         raise "list_of_cells contain different colored stones" unless get_cell(cell) == color
@@ -202,8 +196,8 @@ module HexGraph
       loop do
         one_set += working_set
         working_set.each do |coord|
-          self.adjacent_to(coord).each do |adj_coord|
-            if self.get_cell(adj_coord) == color
+          adjacent_to(coord).each do |adj_coord|
+            if get_cell(adj_coord) == color
               unless one_set.include?(adj_coord)
                 new_set << adj_coord
               end
