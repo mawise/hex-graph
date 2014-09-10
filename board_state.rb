@@ -10,6 +10,11 @@ module HexGraph
       set_edges
     end
 
+    def black_open_edges
+      black_wins_groups? unless @black_open_edges
+      @black_open_edges
+    end 
+
     def set_edges
       (1..@n).each do |z|
         set_cell([0,z], WHITE)
@@ -24,6 +29,20 @@ module HexGraph
       @grid[coord]=value
     end
 
+    def grid=(other)
+      @grid=other
+    end
+
+    def clone
+      new_bs = BoardState.new(@n)
+      new_bs.grid=@grid.clone
+      new_bs
+    end
+
+    def corners
+      [[0,0],[0,@n+1],[@n+1,0],[@n+1,@n+1]]
+    end
+
     def stones_of_color(color)
       stones = []
       (0..@n+1).each do |y|
@@ -31,7 +50,7 @@ module HexGraph
           stones << [x,y] if get_cell([x,y]) == color
         end
       end
-      stones
+      stones - corners
     end
 
     def populate_string(state)
@@ -76,6 +95,7 @@ module HexGraph
       end
     end
 
+    # coord is a list: [x,y]
     def adjacent_to(coord)
       validate_coords(coord)
       x, y = coord
@@ -97,14 +117,35 @@ module HexGraph
       adj.uniq.select{|cell| get_cell(cell)==EMPTY}
     end
 
+    # assumes white to move
+    def black_wins_recursive?
+      return true if black_wins?
+      stones_of_color(EMPTY).shuffle.each do |move|
+        new_board = clone
+        new_board.set_cell(move, WHITE)
+        return false if new_board.white_wins_recursive?
+      end
+      true
+    end
+
+    def white_wins_recursive?
+      return true if white_wins?
+      stones_of_color(EMPTY).shuffle.each do |move|
+        new_board = clone
+        new_board.set_cell(move, BLACK)
+        return false if new_board.black_wins_recursive?
+      end
+      true
+    end
+
+
     def black_wins_naive?
       # black runs north-south, start at north edge
       # breadth first graph expansion
       # see if it gets to any cells in south edge
       north_set = [[1, 0]] #0 row is dummy row of black stones
       north_connected = connected_stones(north_set)
-      return true if north_connected.include?([1,@n+1])
-      false
+      north_connected.include?([1,@n+1])
     end
    
     def black_wins?
@@ -113,12 +154,33 @@ module HexGraph
     
     def black_wins_groups?
       return true if black_wins_naive?
-      
       # get group connected to north
       a_north_stone = [1,0]
       connected_to_north = connected_groups(a_north_stone)
       a_south_stone = [1,@n+1]
       connected_to_north.include?(a_south_stone) 
+    end
+    
+    def white_wins_naive?
+      # white runs east-west, start at west edge
+      # breadth first graph expansion
+      # see if it gets to any cells in east edge
+      west_set = [[0, 1]] #0 column is dummy column of white stones
+      west_connected = connected_stones(west_set)
+      west_connected.include?([@n+1,1])
+    end
+   
+    def white_wins?
+      white_wins_groups?
+    end
+    
+    def white_wins_groups?
+      return true if white_wins_naive?
+      # get group connected to north
+      a_west_stone = [0,1]
+      connected_to_west = connected_groups(a_west_stone)
+      an_east_stone = [@n+1,1]
+      connected_to_west.include?(an_east_stone) 
     end
 
     def connected_groups(starting_stone)
@@ -137,13 +199,13 @@ module HexGraph
           base_adj = open_adjacent_to_group(base_group)
           g_adj = open_adjacent_to_group(g)
           intersection_of_adjacent = base_adj & g_adj
-          if (intersection_of_adjacent).size > 1
+          if (intersection_of_adjacent).size > 1  #if two ways to connect
             overlap_fail = false
             required_open_groups.each_with_index do |open_group, ind|
               overlap = open_group & intersection_of_adjacent
               next if overlap.empty?
               if open_group.size == 2 and intersection_of_adjacent.size == 2
-                overlap_fail = true
+                overlap_fail = true # both are min size, and overlap not empty
                 break
               elsif intersection_of_adjacent == 2
                 o_minus_i = open_group - intersection_of_adjacent
@@ -168,7 +230,7 @@ module HexGraph
             end
             unless overlap_fail
               base_group += g
-              required_open_groups += intersection_of_adjacent
+              required_open_groups << intersection_of_adjacent
             else
               new_unmatched << g
             end
@@ -178,7 +240,9 @@ module HexGraph
         end
         break if unmatched == new_unmatched
         unmatched = new_unmatched
+        new_unmatched = []
       end
+      @black_open_edges = required_open_groups
       return base_group
       
     end

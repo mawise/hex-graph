@@ -7,6 +7,7 @@ describe BoardState, "" do
     expect(bs.black_wins?).to be false
   end
 
+
   it "cells are adjacent to 6 cells" do
     (3..6).each do |n|
       bs = BoardState.new(n)
@@ -16,7 +17,17 @@ describe BoardState, "" do
         end
       end
     end
-  end 
+  end
+  
+  it "makes new objects when cloning" do
+    bs = BoardState.new(2)
+    bs.populate_string("OO BW")
+    bs2 = bs.clone
+    cell = [1,1]
+    bs2.set_cell(cell, BLACK)
+    expect(bs2.get_cell(cell)).to eq(BLACK)
+    expect(bs.get_cell(cell)).to eq(EMPTY)
+  end
 
   it "correctly counts open_adjacent_to_group cells" do
     bs = BoardState.new(4)
@@ -58,11 +69,51 @@ describe BoardState, "" do
     end
   end
 
-#  it "overlap skips do not win" do
-#    bs = BoardState.new(4)
-#    bs.populate_string("OBWW OOBO BOOB WWOO")
-#    # White wins at 2,2
-#    expect(bs.black_wins?).to be false
-#  end
+  it "overlap skips do not win" do
+    bs = BoardState.new(4)
+    bs.populate_string("OBWW OOBO BOOB WWOO")
+    # White wins at 2,2
+    expect(bs.black_wins?).to be false
+    bs.set_cell([2,2],WHITE)
+    expect(bs.white_wins?).to be true
+  end
+ 
+
+  it "finds a unique win move" do
+    bs = BoardState.new(4)
+    bs.populate_string("OBWW OOBO BOOB WWOO")
+    #TODO: white to move, plays at [2,2] 
+  end
+
+  it "doesn't include corners in set of empty stones" do
+    n = 2
+    bs = BoardState.new(n)
+    empty = bs.stones_of_color(EMPTY)
+    corners = [[0,0],[0,n+1],[n+1,n+1],[n+1,0]]
+    expect(empty & corners).to be_empty
+  end
+
+  it "3-3 overlap skips still win" do
+    bs = BoardState.new(6)
+    bs.populate_string("WBBWWO BOOBOO OBOBOW WOBWOO BOWOOO BWOOOW")
+    expect(bs.black_wins?).to be true
+  end
   
+  it "doesn't win with acute corner opening on 3x3" do
+    bs = BoardState.new(3)
+    corner = [1,1]
+    bs.set_cell(corner, BLACK)
+    expect(bs.black_wins?).to be false
+    bs.set_cell(corner, WHITE)
+    expect(bs.white_wins?).to be false
+  end
+  
+  it "wins on center response to acute corner" do
+    bs = BoardState.new(3)
+    corner = [1,1]
+    center = [2,2]
+    bs.set_cell(corner, BLACK)
+    bs.set_cell(center, WHITE)
+    expect(bs.white_wins?).to be true
+  end
 end
