@@ -123,6 +123,11 @@ module HexGraph
       stones_of_color(EMPTY).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
+        return false if new_board.white_wins?
+      end
+      stones_of_color(EMPTY).shuffle.each do |move|
+        new_board = clone
+        new_board.set_cell(move, WHITE)
         return false if new_board.white_wins_recursive?
       end
       true
@@ -130,6 +135,11 @@ module HexGraph
 
     def white_wins_recursive?
       return true if white_wins?
+      stones_of_color(EMPTY).shuffle.each do |move|
+        new_board = clone
+        new_board.set_cell(move, BLACK)
+        return false if new_board.black_wins?
+      end
       stones_of_color(EMPTY).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)
