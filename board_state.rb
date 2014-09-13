@@ -4,7 +4,27 @@ module HexGraph
   EMPTY=0
 
   class BoardState
-
+    N = 4 #memoized solver is hardcoded for a board size
+    @@black_wins = Hash.new do |h,k|
+      bs = BoardState.new(N)
+      bs.from_i(k)
+      if bs.black_wins?
+        h[k] = true
+      else
+        h[k] = bs.black_wins_recursive?
+      end
+    end
+      
+    @@white_wins = Hash.new do |h,k|
+      bs = BoardState.new(N)
+      bs.from_i(k)
+      if bs.white_wins?
+        h[k] = true
+      else
+        h[k] = bs.white_wins_recursive?
+      end
+    end
+    
     def initialize(board_size)
       @n = board_size
       @grid=Hash.new(EMPTY)
@@ -196,7 +216,7 @@ module HexGraph
       must_play(BLACK).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
-        return false if new_board.white_wins_recursive?
+        return false if @@white_wins[new_board.to_i]
       end
       true
     end
@@ -210,7 +230,7 @@ module HexGraph
       must_play(WHITE).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)
-        return false if new_board.black_wins_recursive?
+        return false if @@black_wins[new_board.to_i]
       end
       true
     end
