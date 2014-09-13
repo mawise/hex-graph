@@ -163,23 +163,8 @@ module HexGraph
         return false if new_board.white_wins?
       end
 
-      # identify the must-play (cells white would have to play
-      # in to affect black's potential winning moves)
-      cells_black_needs = []
-      stones_of_color(EMPTY).each do |move|
-        new_board = clone
-        new_board.set_cell(move,BLACK)
-        if new_board.black_wins?
-          cells_black_needs << new_board.black_required
-        end
-      end
-      must_play = stones_of_color(EMPTY)
-      cells_black_needs.each do |set_of_cells|
-        must_play = must_play & set_of_cells
-      end
-
       # Apply the recursive check
-      must_play.shuffle.each do |move|
+      must_play(BLACK).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
         return false if new_board.white_wins_recursive?
@@ -194,21 +179,7 @@ module HexGraph
         new_board.set_cell(move, BLACK)
         return false if new_board.black_wins?
       end
-
-      cells_white_needs = []
-      stones_of_color(EMPTY).each do |move|
-        new_board = clone
-        new_board.set_cell(move,WHITE)
-        if new_board.white_wins?
-          cells_white_needs << new_board.white_required
-        end
-      end
-      must_play = stones_of_color(EMPTY)
-      cells_white_needs.each do |set_of_cells|
-        must_play = must_play & set_of_cells
-      end
-
-      must_play.shuffle.each do |move|
+      must_play(WHITE).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)
         return false if new_board.black_wins_recursive?
@@ -216,6 +187,25 @@ module HexGraph
       true
     end
 
+    # color is the color of the player who's stones must
+    # be intruded upon
+    def must_play(color)
+      needed_cells = []
+      stones_of_color(EMPTY).each do |move|
+        new_board = clone
+        new_board.set_cell(move, color)
+        if color == WHITE and new_board.white_wins?
+          needed_cells << new_board.white_required + [move]
+        elsif color == BLACK and new_board.black_wins?
+          needed_cells << new_board.black_required + [move]
+        end
+      end
+      must_play_cells = stones_of_color(EMPTY)
+      needed_cells.each do |set_of_cells|
+        must_play_cells &= set_of_cells
+      end
+      must_play_cells
+    end
 
     def black_wins_naive?
       # black runs north-south, start at north edge
