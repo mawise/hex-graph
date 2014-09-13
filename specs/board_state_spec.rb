@@ -136,7 +136,16 @@ describe BoardState, "" do
     expect(bs.white_wins?).to be false
     expect(bs.white_wins_recursive?).to be false
   end
-  
+ 
+  it "doesn't win with black opening at [1,2] on 4x4" do
+    bs = BoardState.new(4)
+    open = [1,2]
+    bs.set_cell(open,BLACK)
+    expect(bs.black_wins?).to be false
+    puts "This test is slow, hang on"
+    expect(bs.black_wins_recursive?).to be false
+  end
+
   it "wins on center response to acute corner" do
     bs = BoardState.new(3)
     corner = [1,1]
