@@ -10,11 +10,41 @@ module HexGraph
       set_edges
     end
 
-    def black_open_edges
-      black_wins_groups? unless @black_open_edges
-      @black_open_edges
-    end 
-
+    def black_wins?
+      @black_wins ||= (black_wins_naive? or black_wins_groups?)
+    end
+    
+    def white_wins?
+      @white_wins ||= (white_wins_naive? or white_wins_groups?)
+    end
+   
+    def reset
+      @black_wins = nil
+      @white_wins = nil
+      @black_required = nil
+      @white_required = nil
+    end
+   
+    def black_required
+      if @black_required
+        @black_required
+      else
+        # gets set as a side-effect
+        black_wins_groups?
+        @black_required
+      end
+    end
+    
+    def white_required
+      if @white_required
+        @white_required
+      else
+        # gets set as a side-effect
+        white_wins_groups?
+        @white_required
+      end
+    end
+    
     def set_edges
       (1..@n).each do |z|
         set_cell([0,z], WHITE)
@@ -119,13 +149,37 @@ module HexGraph
 
     # assumes white to move
     def black_wins_recursive?
+      # check the current board state for an obvious win
+      # Note: this is the base case for the recursive check
       return true if black_wins?
-      stones_of_color(EMPTY).shuffle.each do |move|
+
+      # Check if White has any obviously winning move
+      # Note: this is sort-of iterative deepening
+      #   Might be able to remove the previous base-case check
+      #   because it would be checked by the parent
+      (stones_of_color(EMPTY)).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
         return false if new_board.white_wins?
       end
-      stones_of_color(EMPTY).shuffle.each do |move|
+
+      # identify the must-play (cells white would have to play
+      # in to affect black's potential winning moves)
+      cells_black_needs = []
+      stones_of_color(EMPTY).each do |move|
+        new_board = clone
+        new_board.set_cell(move,BLACK)
+        if new_board.black_wins?
+          cells_black_needs << new_board.black_required
+        end
+      end
+      must_play = stones_of_color(EMPTY)
+      cells_black_needs.each do |set_of_cells|
+        must_play = must_play & set_of_cells
+      end
+
+      # Apply the recursive check
+      must_play.shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
         return false if new_board.white_wins_recursive?
@@ -135,12 +189,26 @@ module HexGraph
 
     def white_wins_recursive?
       return true if white_wins?
-      stones_of_color(EMPTY).shuffle.each do |move|
+      (stones_of_color(EMPTY)).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)
         return false if new_board.black_wins?
       end
-      stones_of_color(EMPTY).shuffle.each do |move|
+
+      cells_white_needs = []
+      stones_of_color(EMPTY).each do |move|
+        new_board = clone
+        new_board.set_cell(move,WHITE)
+        if new_board.white_wins?
+          cells_white_needs << new_board.white_required
+        end
+      end
+      must_play = stones_of_color(EMPTY)
+      cells_white_needs.each do |set_of_cells|
+        must_play = must_play & set_of_cells
+      end
+
+      must_play.shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)
         return false if new_board.black_wins_recursive?
@@ -151,48 +219,39 @@ module HexGraph
 
     def black_wins_naive?
       # black runs north-south, start at north edge
-      # breadth first graph expansion
       # see if it gets to any cells in south edge
       north_set = [[1, 0]] #0 row is dummy row of black stones
       north_connected = connected_stones(north_set)
       north_connected.include?([1,@n+1])
     end
    
-    def black_wins?
-      black_wins_groups?
-    end
-    
     def black_wins_groups?
-      return true if black_wins_naive?
       # get group connected to north
       a_north_stone = [1,0]
-      connected_to_north = connected_groups(a_north_stone)
+      connected_to_north, @black_required = connected_groups(a_north_stone)
       a_south_stone = [1,@n+1]
       connected_to_north.include?(a_south_stone) 
     end
     
     def white_wins_naive?
       # white runs east-west, start at west edge
-      # breadth first graph expansion
       # see if it gets to any cells in east edge
       west_set = [[0, 1]] #0 column is dummy column of white stones
       west_connected = connected_stones(west_set)
       west_connected.include?([@n+1,1])
     end
    
-    def white_wins?
-      white_wins_groups?
-    end
-    
     def white_wins_groups?
-      return true if white_wins_naive?
       # get group connected to north
       a_west_stone = [0,1]
-      connected_to_west = connected_groups(a_west_stone)
+      connected_to_west, @white_required = connected_groups(a_west_stone)
       an_east_stone = [@n+1,1]
       connected_to_west.include?(an_east_stone) 
     end
 
+    # Returns a list of stones connected to the stone at the
+    # specified cell.  This connection assumes that two empty
+    # cells between two stones allows a connection to be formed
     def connected_groups(starting_stone)
       groups = [connected_stones([starting_stone])]
       color = get_cell(starting_stone)
@@ -252,8 +311,7 @@ module HexGraph
         unmatched = new_unmatched
         new_unmatched = []
       end
-      @black_open_edges = required_open_groups
-      return base_group
+      return base_group, required_open_groups.flatten(1)
       
     end
     

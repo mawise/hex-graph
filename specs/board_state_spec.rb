@@ -69,6 +69,33 @@ describe BoardState, "" do
     end
   end
 
+  it "has a functioning connected_groups method" do
+    bs = BoardState.new(3)
+    bs.populate_string("OOB OOO OBO")
+    top_stone = [1,0]
+    connected, required = bs.connected_groups(top_stone)
+    expect(connected).to include [3,1]
+    expect(connected).to include [2,3]
+    expect(required).to include [3,2]
+    expect(required).to include [2,2]
+  end
+
+  it "reclaculates win after a reset" do
+    bs = BoardState.new(3)
+    bs.populate_string("OOB OOO OBO")
+    expect(bs.black_wins?).to be true
+    expect(bs.black_wins?).to be true
+    bs.reset
+    expect(bs.black_wins?).to be true
+  end
+
+  it "keeps track of required cells" do
+    bs = BoardState.new(3)
+    bs.populate_string("OOB OOO OBO")
+    expect(bs.black_required).to include [3,2]
+    expect(bs.black_required).to include [2,2]
+  end
+
   it "overlap skips do not win" do
     bs = BoardState.new(4)
     bs.populate_string("OBWW OOBO BOOB WWOO")
@@ -104,8 +131,10 @@ describe BoardState, "" do
     corner = [1,1]
     bs.set_cell(corner, BLACK)
     expect(bs.black_wins?).to be false
+    expect(bs.black_wins_recursive?).to be false
     bs.set_cell(corner, WHITE)
     expect(bs.white_wins?).to be false
+    expect(bs.white_wins_recursive?).to be false
   end
   
   it "wins on center response to acute corner" do
