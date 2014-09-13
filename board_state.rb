@@ -4,6 +4,7 @@ module HexGraph
   EMPTY=0
 
   class BoardState
+
     def initialize(board_size)
       @n = board_size
       @grid=Hash.new(EMPTY)
@@ -54,11 +55,6 @@ module HexGraph
       end
     end
 
-    def set_cell(coord, value)
-      validate_coords(coord)
-      @grid[coord]=value
-    end
-
     def grid=(other)
       @grid=other
     end
@@ -84,6 +80,7 @@ module HexGraph
     end
 
     def populate_string(state)
+      reset
       # B for Black, W for white, O for open.  One row at a time.
       state = state.gsub(" ", "")
       raise "#{state} Wrong length state string for board size #{@n}" unless state.size == @n*@n
@@ -99,8 +96,47 @@ module HexGraph
       end
     end
 
+    def to_base_4
+      str = ""
+      (1..@n).each do |y|
+        (1..@n).each do |x|
+          str << (get_cell([x,y]) % 4).to_s
+        end
+      end
+      str
+    end
+
+    def from_base_4(str)
+      reset
+      # 3 for Black, 1 for white, 0 for open.  One row at a time.
+      raise "#{str} Wrong length state string for board size #{@n}" unless str.size == @n*@n
+      @grid = Hash.new(EMPTY)
+      set_edges
+      i=0
+      str.each_char do |ch|
+        x = (i % @n) + 1
+        y = (i / @n) + 1
+        set_cell([x,y], WHITE) if ch=='1'  
+        set_cell([x,y], BLACK) if ch=='3' 
+        i+=1 
+      end
+    end
+       
+    def to_i
+      to_base_4.to_i(4)
+    end
+    def from_i(i)
+      from_base_4(i.to_s(4).rjust(@n*@n,"0"))
+    end  
+
     def get_cell(coord)
       @grid[coord]
+    end
+
+    def set_cell(coord, value)
+      reset
+      validate_coords(coord)
+      @grid[coord]=value
     end
 
     def print_board
@@ -115,7 +151,7 @@ module HexGraph
         puts " "
       end
     end
-
+    
     def validate_coords(coord)
       raise "Coordinates must be passed as an array" unless coord.is_a?(Array)
       raise "Coordinates must have two values" unless coord.size == 2
@@ -149,14 +185,7 @@ module HexGraph
 
     # assumes white to move
     def black_wins_recursive?
-      # check the current board state for an obvious win
-      # Note: this is the base case for the recursive check
-      return true if black_wins?
-
       # Check if White has any obviously winning move
-      # Note: this is sort-of iterative deepening
-      #   Might be able to remove the previous base-case check
-      #   because it would be checked by the parent
       (stones_of_color(EMPTY)).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, WHITE)
@@ -173,7 +202,6 @@ module HexGraph
     end
 
     def white_wins_recursive?
-      return true if white_wins?
       (stones_of_color(EMPTY)).shuffle.each do |move|
         new_board = clone
         new_board.set_cell(move, BLACK)

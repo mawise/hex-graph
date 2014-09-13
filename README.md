@@ -51,6 +51,6 @@ puts "Black has #{bs.black_wins_recursive? ? "" : "not "}won"
 Status
 ------
 * Solves 3x3 in about 1/10 second.
-* Solves 4x4 in about 5 minutes.
+* Solves 4x4 in about 2 minutes.
 
 
