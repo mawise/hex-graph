@@ -55,7 +55,7 @@ describe BoardState, "" do
     bs = BoardState.new(3)
     bs.populate_string("OOB OOO OBO")
     top_stone = [1,0]
-    connected, required = bs.connected_groups(top_stone)
+    connected, required = bs.connected_groups([top_stone])
     expect(connected).to include [3,1]
     expect(connected).to include [2,3]
     expect(required).to include [3,2]

@@ -3,9 +3,9 @@ module HexGraph
     # Returns a list of stones connected to the stone at the
     # specified cell.  This connection assumes that two empty
     # cells between two stones allows a connection to be formed
-    def connected_groups(starting_stone)
-      groups = [connected_stones([starting_stone])]
-      color = get_cell(starting_stone)
+    def connected_groups(starting_stones)
+      groups = [connected_stones(starting_stones)]
+      color = get_cell(starting_stones.first)
       stones_of_color(color).each do |cell|
         next if groups.flatten(1).include?(cell)
         groups << connected_stones([cell])

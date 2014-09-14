@@ -21,7 +21,7 @@ black_opens.stones_of_color(EMPTY).each do |move|
   else
     black_opens.set_cell(move, WHITE)
   end
-  puts "#{black_opens.get_cell(move)} wins at #{move}"
+  puts "#{black_opens.get_cell(move)==BLACK ? "Black" : "White"} wins with Black open at #{move}"
 end
 black_opens.stones_of_color(EMPTY).each do |move|
   x,y = move.map{|i| i-1}
