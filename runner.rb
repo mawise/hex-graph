@@ -1,4 +1,4 @@
-require_relative 'board_state'
+require_relative 'hexgraph'
 include HexGraph
 
 #WHITE = HexGraph::WHITE

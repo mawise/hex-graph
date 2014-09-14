@@ -10,14 +10,6 @@ module HexGraph
       @grid=Hash.new(EMPTY)
       set_edges
     end
-
-    def black_wins?
-      @black_wins ||= (black_wins_naive? or black_wins_groups?)
-    end
-    
-    def white_wins?
-      @white_wins ||= (white_wins_naive? or white_wins_groups?)
-    end
    
     def reset
       @black_wins = nil
@@ -31,7 +23,7 @@ module HexGraph
         @black_required
       else
         # gets set as a side-effect
-        black_wins_groups?
+        raise "Can't check black_required unless black_wins_groups" unless black_wins_groups?
         @black_required
       end
     end
@@ -41,7 +33,7 @@ module HexGraph
         @white_required
       else
         # gets set as a side-effect
-        white_wins_groups?
+        raise "Can't check white_required unless white_wins_groups" unless white_wins_groups?
         @white_required
       end
     end
@@ -95,39 +87,6 @@ module HexGraph
         i+=1 
       end
     end
-
-    def to_base_4
-      str = ""
-      (1..@n).each do |y|
-        (1..@n).each do |x|
-          str << (get_cell([x,y]) % 4).to_s
-        end
-      end
-      str
-    end
-
-    def from_base_4(str)
-      reset
-      # 3 for Black, 1 for white, 0 for open.  One row at a time.
-      raise "#{str} Wrong length state string for board size #{@n}" unless str.size == @n*@n
-      @grid = Hash.new(EMPTY)
-      set_edges
-      i=0
-      str.each_char do |ch|
-        x = (i % @n) + 1
-        y = (i / @n) + 1
-        set_cell([x,y], WHITE) if ch=='1'  
-        set_cell([x,y], BLACK) if ch=='3' 
-        i+=1 
-      end
-    end
-       
-    def to_i
-      to_base_4.to_i(4)
-    end
-    def from_i(i)
-      from_base_4(i.to_s(4).rjust(@n*@n,"0"))
-    end  
 
     def get_cell(coord)
       @grid[coord]
@@ -183,38 +142,6 @@ module HexGraph
       adj.uniq.select{|cell| get_cell(cell)==EMPTY}
     end
 
-    # assumes white to move
-    def black_wins_recursive?
-      # Check if White has any obviously winning move
-      (stones_of_color(EMPTY)).shuffle.each do |move|
-        new_board = clone
-        new_board.set_cell(move, WHITE)
-        return false if new_board.white_wins?
-      end
-
-      # Apply the recursive check
-      must_play(BLACK).shuffle.each do |move|
-        new_board = clone
-        new_board.set_cell(move, WHITE)
-        return false if new_board.white_wins_recursive?
-      end
-      true
-    end
-
-    def white_wins_recursive?
-      (stones_of_color(EMPTY)).shuffle.each do |move|
-        new_board = clone
-        new_board.set_cell(move, BLACK)
-        return false if new_board.black_wins?
-      end
-      must_play(WHITE).shuffle.each do |move|
-        new_board = clone
-        new_board.set_cell(move, BLACK)
-        return false if new_board.black_wins_recursive?
-      end
-      true
-    end
-
     # color is the color of the player who's stones must
     # be intruded upon
     def must_play(color)
@@ -235,132 +162,6 @@ module HexGraph
       must_play_cells
     end
 
-    def black_wins_naive?
-      # black runs north-south, start at north edge
-      # see if it gets to any cells in south edge
-      north_set = [[1, 0]] #0 row is dummy row of black stones
-      north_connected = connected_stones(north_set)
-      north_connected.include?([1,@n+1])
-    end
-   
-    def black_wins_groups?
-      # get group connected to north
-      a_north_stone = [1,0]
-      connected_to_north, @black_required = connected_groups(a_north_stone)
-      a_south_stone = [1,@n+1]
-      connected_to_north.include?(a_south_stone) 
-    end
-    
-    def white_wins_naive?
-      # white runs east-west, start at west edge
-      # see if it gets to any cells in east edge
-      west_set = [[0, 1]] #0 column is dummy column of white stones
-      west_connected = connected_stones(west_set)
-      west_connected.include?([@n+1,1])
-    end
-   
-    def white_wins_groups?
-      # get group connected to north
-      a_west_stone = [0,1]
-      connected_to_west, @white_required = connected_groups(a_west_stone)
-      an_east_stone = [@n+1,1]
-      connected_to_west.include?(an_east_stone) 
-    end
-
-    # Returns a list of stones connected to the stone at the
-    # specified cell.  This connection assumes that two empty
-    # cells between two stones allows a connection to be formed
-    def connected_groups(starting_stone)
-      groups = [connected_stones([starting_stone])]
-      color = get_cell(starting_stone)
-      stones_of_color(color).each do |cell|
-        next if groups.flatten(1).include?(cell)
-        groups << connected_stones([cell])
-      end
-      base_group = groups[0]
-      unmatched = groups[1..groups.size]
-      required_open_groups = []
-      new_unmatched = []
-      loop do
-        unmatched.each do |g|
-          base_adj = open_adjacent_to_group(base_group)
-          g_adj = open_adjacent_to_group(g)
-          intersection_of_adjacent = base_adj & g_adj
-          if (intersection_of_adjacent).size > 1  #if two ways to connect
-            overlap_fail = false
-            required_open_groups.each_with_index do |open_group, ind|
-              overlap = open_group & intersection_of_adjacent
-              next if overlap.empty?
-              if open_group.size == 2 and intersection_of_adjacent.size == 2
-                overlap_fail = true # both are min size, and overlap not empty
-                break
-              elsif intersection_of_adjacent == 2
-                o_minus_i = open_group - intersection_of_adjacent
-                if o_minus_i.size > 1
-                  required_open_groups[ind] = o_minus_i
-                else
-                  overlap_fail = true
-                  break
-                end
-              elsif open_group.size == 2
-                i_minus_o = intersection_of_adjacent - open_group
-                if i_minus_o.size > 1
-                  intersection_of_adjacent = i_minus_o
-                else
-                  overlap_fail = true
-                  break
-                end
-              #elsif both groups are bigger than 2, turn them into
-              #disjoint subsets
-              end
-
-            end
-            unless overlap_fail
-              base_group += g
-              required_open_groups << intersection_of_adjacent
-            else
-              new_unmatched << g
-            end
-          else
-            new_unmatched << g
-          end
-        end
-        break if unmatched == new_unmatched
-        unmatched = new_unmatched
-        new_unmatched = []
-      end
-      return base_group, required_open_groups.flatten(1)
-      
-    end
-    
-    def connected_stones(list_of_cells)
-      return [] if list_of_cells.empty?
-      color = get_cell(list_of_cells.first)
-      raise "list_of_cells not black or white" if color == EMPTY
-      list_of_cells.each do |cell|
-        raise "list_of_cells contain different colored stones" unless get_cell(cell) == color
-      end
-      one_set = []
-      working_set = list_of_cells
-      new_set = []
-      loop do
-        one_set += working_set
-        working_set.each do |coord|
-          adjacent_to(coord).each do |adj_coord|
-            if get_cell(adj_coord) == color
-              unless one_set.include?(adj_coord)
-                new_set << adj_coord
-              end
-            end
-          end
-        end
-        break if new_set.size == 0
-        one_set += working_set
-        working_set = new_set
-        new_set = []
-      end
-      one_set.uniq
-    end
   end
 
 end
