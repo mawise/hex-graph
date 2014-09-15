@@ -56,4 +56,16 @@ describe BoardState, "" do
     bs.set_cell(center, WHITE)
     expect(bs.white_wins?).to be true
   end
+
+  it "doesn't win when template overlaps a skip" do
+    bs = BoardState.new(5)
+    bs.set_cell([1,3],BLACK)
+    bs.set_cell([3,3],WHITE)
+    bs.set_cell([2,4],BLACK)
+    bs.set_cell([3,4],WHITE)
+    #Black looses to White [3,2] at the overlap
+    expect(bs.black_wins?).to be false
+  end
+
+
 end

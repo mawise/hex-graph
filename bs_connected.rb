@@ -3,7 +3,7 @@ module HexGraph
     # Returns a list of stones connected to the stone at the
     # specified cell.  This connection assumes that two empty
     # cells between two stones allows a connection to be formed
-    def connected_groups(starting_stones)
+    def connected_groups(starting_stones, starting_required = [])
       groups = [connected_stones(starting_stones)]
       color = get_cell(starting_stones.first)
       stones_of_color(color).each do |cell|
@@ -12,7 +12,7 @@ module HexGraph
       end
       base_group = groups[0]
       unmatched = groups[1..groups.size]
-      required_open_groups = []
+      required_open_groups = [starting_required]
       new_unmatched = []
       loop do
         unmatched.each do |g|

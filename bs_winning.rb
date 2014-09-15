@@ -18,13 +18,19 @@ module HexGraph
     end
    
     def black_wins_groups?
-      # get group connected to north
       a_north_stone = [1,0]
-      connected_to_north, @black_required = connected_groups([a_north_stone])
       a_south_stone = [1,@n+1]
-      connected_to_north.include?(a_south_stone) 
-      #unless (connected_to_north & template_connected_south).empty?
-        ## TODO: need to add template to @black_required
+
+      north_connected_by_template, north_template_required = template_connected("north") 
+      connected_to_north, @black_required = connected_groups([a_north_stone] + north_connected_by_template, north_template_required)#TODO: add template_required to connected_groups method
+      return true if connected_to_north.include?(a_south_stone)
+      south_connected_by_template, south_template_required = template_connected("south") 
+      if (connected_to_north & south_connected_by_template).empty?
+        false
+      else
+        @black_required += south_template_required
+        true
+      end
     end
     
     def white_wins_naive?

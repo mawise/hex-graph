@@ -52,5 +52,5 @@ Status
 ------
 * Solves 3x3 in about 1/10 second.
 * Solves 4x4 in about 2 minutes.
-
+* Currently trying to find a good implementation to support Templates.  In maintaining my computation of a 'must-play', the templating structure has gotten complicated.  Given that the first step of my recursive win check looks for an immediate winning move, limiting search to a must-play does nto prune much of the game tree; so I may remove it.  The challenge with templates is keeping track of which open cells are required for the template, and dealing with overlap between the template's required cells and any skip connections.  The failing spec illustrates this case.  I'm probably going to add another layer on top of the board state to keep track of the strucutre of connections.  Perhaps a group object that represents a group of contiguous stones, and a connection object that represents a connection between two groups of contiguous stones.  The connection object being responsible for keeping track of which empty cells need to be used for the connection.
 
